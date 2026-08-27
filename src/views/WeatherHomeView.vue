@@ -1,0 +1,85 @@
+<script setup>
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import BaseDashboardCard from '../components/exercise/BaseDashboardCard.vue'
+import SearchBar from '../components/exercise/SearchBar.vue'
+import WeatherCard from '../components/exercise/WeatherCard.vue'
+
+const router = useRouter()
+const searchQuery = ref('')
+const selectedCityInfo = ref('')
+
+const weatherList = ref([
+  { id: 'city_01', name: '서울', temp: 28, status: '맑음', humidity: 55, wind: 2.5 },
+  { id: 'city_02', name: '수원', temp: 24, status: '비', humidity: 78, wind: 3.8 },
+  { id: 'city_03', name: '부산', temp: 26, status: '구름', humidity: 68, wind: 4.2 },
+])
+
+//검색어 입력하는 그 모든 순간 마다 검색 진행
+const filteredWeatherList = computed(() => {
+  return weatherList.value.filter((city) => city.name.includes(searchQuery.value.trim()))
+})
+
+const selectCity = (city) => {
+  selectedCityInfo.value = `${city.name}이(가) 선택되었습니다.`
+}
+
+const moveToDetail = (city) => {
+  router.push(`/weather/${city.id}`)
+}
+</script>
+
+<template>
+  <div class="weather-home">
+    <BaseDashboardCard title="🔍 도시 검색">
+      <SearchBar :search-query="searchQuery" @update-query="searchQuery = $event"></SearchBar>
+    </BaseDashboardCard>
+
+    <BaseDashboardCard title="🌁 지역별 날씨 현황">
+      <div v-if="filteredWeatherList.length" class="weather-list">
+        <WeatherCard
+          v-for="weather in filteredWeatherList"
+          :key="weather.id"
+          :weather="weather"
+          @select-card="selectCity"
+          @click-detail="moveToDetail"
+        ></WeatherCard>
+      </div>
+      <p v-else class="empty-message">일치하는 도시가 없습니다.</p>
+    </BaseDashboardCard>
+
+    <p class="status-message">
+      {{ selectedCityInfo || '카드를 클릭하거나 검색해 보세요.' }}
+    </p>
+  </div>
+</template>
+
+<style scoped>
+.weather-home {
+  display: grid;
+  gap: 18px;
+}
+
+.weather-list {
+  display: grid;
+  gap: 14px;
+}
+
+.empty-message {
+  margin: 0;
+  padding: 28px;
+  color: #64748b;
+  text-align: center;
+}
+
+.status-message {
+  margin: 0;
+  padding: 16px;
+  border-radius: 10px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+</style>
