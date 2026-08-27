@@ -1,21 +1,18 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseDashboardCard from '../components/exercise/BaseDashboardCard.vue'
 import SearchBar from '../components/exercise/SearchBar.vue'
 import WeatherCard from '../components/exercise/WeatherCard.vue'
+import { useWeather } from '@/composables/useWeather'
 
 const router = useRouter()
 const searchQuery = ref('')
 const selectedCityInfo = ref('')
+const { weatherData, isLoading, errorMessage, getWeather } = useWeather()
 
-const weatherList = ref([
-  { id: 'city_01', name: '서울', temp: 28, status: '맑음', humidity: 55, wind: 2.5 },
-  { id: 'city_02', name: '수원', temp: 24, status: '비', humidity: 78, wind: 3.8 },
-  { id: 'city_03', name: '부산', temp: 26, status: '구름', humidity: 68, wind: 4.2 },
-])
+const weatherList = computed(() => (weatherData.value ? [weatherData.value] : []))
 
-//검색어 입력하는 그 모든 순간 마다 검색 진행
 const filteredWeatherList = computed(() => {
   return weatherList.value.filter((city) => city.name.includes(searchQuery.value.trim()))
 })
@@ -27,16 +24,25 @@ const selectCity = (city) => {
 const moveToDetail = (city) => {
   router.push(`/weather/${city.id}`)
 }
+
+onMounted(() => {
+  getWeather()
+})
 </script>
 
 <template>
   <div class="weather-home">
     <BaseDashboardCard title="🔍 도시 검색">
-      <SearchBar :search-query="searchQuery" @update-query="searchQuery = $event"></SearchBar>
+      <SearchBar
+        :search-query="searchQuery"
+        @update-query="searchQuery = $event"
+      ></SearchBar>
     </BaseDashboardCard>
 
     <BaseDashboardCard title="🌁 지역별 날씨 현황">
-      <div v-if="filteredWeatherList.length" class="weather-list">
+      <p v-if="isLoading" class="state-message">날씨 데이터를 불러오는 중입니다...</p>
+      <p v-else-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+      <div v-else-if="filteredWeatherList.length" class="weather-list">
         <WeatherCard
           v-for="weather in filteredWeatherList"
           :key="weather.id"
@@ -70,6 +76,24 @@ const moveToDetail = (city) => {
   padding: 28px;
   color: #64748b;
   text-align: center;
+}
+
+.state-message,
+.error-message {
+  margin: 0;
+  padding: 28px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.state-message {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #dc2626;
 }
 
 .status-message {

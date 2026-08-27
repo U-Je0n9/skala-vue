@@ -1,23 +1,30 @@
 <script setup>
-import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTemperature } from '@/composables/useTemperature'
+import { useWeather } from '@/composables/useWeather'
 
-const route = useRoute()
 const router = useRouter()
 
-const weatherList = [
-  { id: 'city_01', name: '서울', temp: 28, status: '맑음', humidity: 55, wind: 2.5 },
-  { id: 'city_02', name: '수원', temp: 24, status: '비', humidity: 78, wind: 3.8 },
-  { id: 'city_03', name: '부산', temp: 26, status: '구름', humidity: 68, wind: 4.2 },
-]
+const { weatherData: weather, isLoading, errorMessage, getWeather } = useWeather()
+const { displayTemp, unitSymbol } = useTemperature(() => weather.value?.temp ?? 0)
 
-const weather = computed(() => weatherList.find((city) => city.id === route.params.id))
-const { displayTemp, unitSymbol } = useTemperature(() => weather.value.temp)
+onMounted(() => {
+  getWeather()
+})
 </script>
 
 <template>
-  <section class="detail-card">
+  <section v-if="isLoading" class="detail-card state-message">
+    날씨 데이터를 불러오는 중입니다...
+  </section>
+
+  <section v-else-if="errorMessage" class="detail-card state-message error-message">
+    <p>{{ errorMessage }}</p>
+    <button type="button" @click="router.push('/')">목록으로 돌아가기</button>
+  </section>
+
+  <section v-else-if="weather" class="detail-card">
     <h2>🌡️ {{ weather.name }} 상세 날씨</h2>
     <dl>
       <div><dt>날씨</dt><dd>{{ weather.status }}</dd></div>
@@ -73,5 +80,14 @@ const { displayTemp, unitSymbol } = useTemperature(() => weather.value.temp)
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+}
+
+.state-message {
+  color: #475569;
+  text-align: center;
+}
+
+.error-message {
+  color: #dc2626;
 }
 </style>

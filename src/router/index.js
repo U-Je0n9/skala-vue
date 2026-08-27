@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-const validCityIds = ['city_01', 'city_02', 'city_03']
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -21,7 +19,7 @@ const router = createRouter({
       name: 'weather-detail',
       component: () => import('../views/WeatherDetailView.vue'),
       beforeEnter: (to) => {
-        if (!validCityIds.includes(to.params.id)) {
+        if (!/^\d+$/.test(String(to.params.id))) {
           return { name: 'not-found', params: { pathMatch: ['weather', to.params.id] } }
         }
       },
