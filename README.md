@@ -113,17 +113,17 @@ Vue Router의 직접 접근을 위해 `vercel.json`에 SPA rewrite가 설정되�
 
 | 단계 | 확장 내용 | 핵심 학습 |
 | --- | --- | --- |
-| Day 1 | 임시 데이터 기반 날씨 목업 | `ref`, `v-for`, `v-if`, 이벤트 |
-| Day 2 | 반응형 도시 검색 | `computed`, `watch`, `watchEffect` |
-| Day 3 | 검색창·카드·레이아웃 분리 | props, emits, `<slot>` |
-| Day 4 | 홈·소개·상세·404 페이지 | Vue Router, 동적 경로, Lazy Loading |
-| Day 5 | 섭씨·화씨 전역 상태 | Pinia, composable |
-| Day 6 | 실제 현재 날씨 | OpenWeather, 응답 정규화, 로딩·오류 |
-| Day 7 | 대표 5지역과 UI 개선 | 병렬 요청, PrimeVue, AutoComplete |
-| Day 8 | 최대 7일 예보 | Open-Meteo, 새 Store/View/Component |
-| Day 9 | 일출·일몰 기반 테마 | 시간 계산, 추천 문구, App 리팩토링 |
-| Day 10 | 사용자 도시와 즐겨찾기 | Geocoding, `localStorage`, 정렬·중복 제거 |
-| Day 11 | 미세먼지 상세 정보 | AirKorea, 측정소 선택, 결측·지연 처리 |
+| 1 | 임시 데이터 기반 날씨 목업 | `ref`, `v-for`, `v-if`, 이벤트 |
+| 2 | 반응형 도시 검색 | `computed`, `watch`, `watchEffect` |
+| 3 | 검색창·카드·레이아웃 분리 | props, emits, `<slot>` |
+| 4 | 홈·소개·상세·404 페이지 | Vue Router, 동적 경로, Lazy Loading |
+| 5 | 섭씨·화씨 전역 상태 | Pinia, composable |
+| 6 | 실제 현재 날씨 | OpenWeather, 응답 정규화, 로딩·오류 |
+| 7 | 대표 5지역과 UI 개선 | 병렬 요청, PrimeVue, AutoComplete |
+| 8 | 최대 7일 예보 | Open-Meteo, 새 Store/View/Component |
+| 9 | 일출·일몰 기반 테마 | 시간 계산, 추천 문구, App 리팩토링 |
+| 10 | 사용자 도시와 즐겨찾기 | Geocoding, `localStorage`, 정렬·중복 제거 |
+| 11 | 미세먼지 상세 정보 | AirKorea, 측정소 선택, 결측·지연 처리 |
 
 처음에는 모든 상태와 UI가 한 컴포넌트에 있었습니다. 기능이 여러 화면에서 필요해질 때 Store와 composable로 옮겼고, 외부 API 응답은 API 계층에서 기존 카드가 사용할 형태로 변환했습니다. 기존 데이터 흐름을 유지하면서 필요한 기능을 한 단계씩 얹는 방식으로 개발했습니다.
 
