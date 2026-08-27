@@ -9,6 +9,7 @@ import UnitToggle from '@/components/exercise/UnitToggle.vue'
       <nav>
         <div class="nav-links">
           <RouterLink to="/">🌤️ 날씨 대시보드</RouterLink>
+          <RouterLink to="/forecast">📅 주간 예보</RouterLink>
           <RouterLink to="/about">📘 서비스 소개</RouterLink>
         </div>
 

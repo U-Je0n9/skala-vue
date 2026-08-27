@@ -20,6 +20,8 @@ Day 5: Pinia 전역 상태와 composable
 Day 6: OpenWeather API 연동
   ↓
 Day 7: 대표 5지역 확장과 PrimeVue 적용
+  ↓
+Day 8: Open-Meteo 주간 예보 기능 확장
 ```
 
 Day 1부터 Day 5까지는 다음과 같은 Mock Data를 사용했고, Day 6부터 실제 OpenWeather API 데이터로 교체했습니다.
@@ -850,7 +852,281 @@ primeicons@7.0.0
 
 ---
 
-## 11. 전체 데이터 흐름
+## 11. Day 8 - 주간 예보 기능 확장
+
+### 11.1 기능을 선택하기 전 고민
+
+추가 과제에서는 다음 요구사항을 하나의 기능 안에서 사용해야 했습니다.
+
+- 새로운 반응형 상태 변수, computed, watcher
+- 추가 컴포넌트
+- 새로운 View와 Router
+- 새로운 Pinia Store
+- 다른 외부 API
+
+각 요구사항을 따로 구현하면 기능끼리 연결되지 않고 학습 내용을 보여주기 위한 코드만 늘어날 수 있다고 생각했습니다. 현재 날씨와 자연스럽게 연결되면서 모든 요구사항을 하나의 데이터 흐름으로 설명할 수 있는 기능이 필요했습니다.
+
+고려한 기능은 다음과 같습니다.
+
+```text
+1. 즐겨찾기 도시
+2. 대기질 정보
+3. 주간 날씨 예보
+```
+
+즐겨찾기는 Store를 사용하기 좋지만 새로운 외부 API를 사용한다는 요구사항과 연결하기 어려웠습니다. 대기질 정보도 날씨와 관련 있지만 현재 화면의 온도·강수 정보와 비교했을 때 사용자가 바로 이해하기 어려운 수치가 많았습니다.
+
+최종적으로 도시와 기간을 선택하고 날짜별 최고·최저 기온과 강수확률을 확인하는 주간 예보 기능을 선택했습니다. 현재 날씨에서 미래 날씨로 기능이 자연스럽게 확장되고, 도시 선택을 watcher와 연결하며, 예보 데이터를 별도의 Store에 저장할 수 있기 때문입니다.
+
+### 11.2 외부 API 선택
+
+기존 현재 날씨는 OpenWeather API를 사용하고 있습니다. 추가 기능에서는 다른 외부 API를 적용하기 위해 Open-Meteo Forecast API를 선택했습니다.
+
+Open-Meteo를 선택할 때 고려한 점은 다음과 같습니다.
+
+- 별도의 API 키 없이 실습 가능
+- 기존 대표 도시의 위도와 경도 재사용 가능
+- 일별 최고·최저 기온 제공
+- 일별 강수확률 제공
+- 날씨 상태를 나타내는 WMO 코드 제공
+- 한 번의 요청으로 7일 예보 조회 가능
+
+요청하는 데이터는 필요한 값으로만 제한했습니다.
+
+```js
+daily: [
+  'weather_code',
+  'temperature_2m_max',
+  'temperature_2m_min',
+  'precipitation_probability_max',
+].join(',')
+```
+
+사용하지 않는 시간별 데이터를 모두 요청하지 않고 화면에 필요한 일별 데이터만 받도록 했습니다.
+
+### 11.3 API 응답 변환
+
+Open-Meteo의 일별 응답은 날짜, 날씨 코드, 최고 기온처럼 각 필드가 별도의 배열로 전달됩니다.
+
+```text
+daily.time[0]
+daily.weather_code[0]
+daily.temperature_2m_max[0]
+```
+
+컴포넌트가 사용하기 편하도록 같은 index의 값을 날짜별 객체 하나로 묶었습니다.
+
+```js
+return daily.time.map((date, index) => ({
+  date,
+  weatherCode: daily.weather_code[index],
+  status: weatherCodeMap[daily.weather_code[index]] ?? '정보 없음',
+  maxTemp: Math.round(daily.temperature_2m_max[index]),
+  minTemp: Math.round(daily.temperature_2m_min[index]),
+  precipitationProbability:
+    daily.precipitation_probability_max[index],
+}))
+```
+
+외부 API의 원본 구조를 View와 컴포넌트에서 직접 해석하지 않고 `forecastApi.js`에서 화면용 구조로 변환했습니다.
+
+### 11.4 반응형 상태 변수와 computed
+
+주간 예보 화면에만 필요한 선택 상태는 Store가 아니라 View의 지역 상태로 관리했습니다.
+
+```js
+const selectedCity = ref(cities[0])
+const selectedDays = ref(5)
+```
+
+- `selectedCity`: 현재 선택한 도시
+- `selectedDays`: 화면에 표시할 예보 기간
+
+Store가 가진 전체 예보 중 현재 도시에 해당하는 데이터와 선택한 기간만 computed로 계산했습니다.
+
+```js
+const forecastList = computed(() => {
+  return forecastStore.getForecastByCity(selectedCity.value.name)
+})
+
+const visibleForecast = computed(() => {
+  return forecastList.value.slice(0, selectedDays.value)
+})
+```
+
+강수확률이 높은 날짜 수도 별도의 상태로 중복 저장하지 않고 computed로 계산했습니다.
+
+```js
+const rainyDays = computed(() => {
+  return visibleForecast.value.filter(
+    (day) => day.precipitationProbability >= 50,
+  ).length
+})
+```
+
+### 11.5 watcher 사용 이유
+
+도시가 변경되는 순간 해당 도시의 예보를 조회해야 하므로 `selectedCity`를 watcher로 감시했습니다.
+
+```js
+watch(
+  selectedCity,
+  (city) => {
+    forecastStore.fetchCityForecast(city)
+  },
+  { immediate: true },
+)
+```
+
+`immediate: true`를 사용해 화면 최초 진입 시에도 판교 예보가 자동으로 요청되게 했습니다. 이번 watcher는 단순히 console을 출력하는 것이 아니라 반응형 상태 변경과 실제 API 요청을 연결합니다.
+
+### 11.6 새로운 Pinia Store
+
+주간 예보는 `forecastStore`에서 관리합니다.
+
+```js
+const forecastByCity = ref({})
+const isLoading = ref(false)
+const errorMessage = ref('')
+```
+
+도시별 데이터를 객체에 보관합니다.
+
+```js
+forecastByCity.value = {
+  판교: [...],
+  서울: [...],
+}
+```
+
+이미 Store에 들어 있는 도시는 다시 요청하지 않습니다.
+
+```js
+if (forecastByCity.value[city.name]) return
+```
+
+처음에는 API 요청을 줄이기 위해 localStorage와 시간 만료를 사용하는 캐시도 고려했습니다. 하지만 아직 배우지 않은 캐시 개념을 과제에 과하게 적용하기보다, 배운 Pinia의 state와 action만 활용하기로 결정했습니다.
+
+따라서 현재 방식은 브라우저를 새로고침하면 초기화되지만, 앱을 실행하는 동안 도시를 다시 선택했을 때는 Store의 데이터를 재사용합니다. 학습 범위를 지키면서 중복 요청도 일부 줄일 수 있는 절충안입니다.
+
+### 11.7 추가 컴포넌트와 View
+
+주간 예보 기능을 다음 파일로 분리했습니다.
+
+```text
+api/forecastApi.js
+└── Open-Meteo 요청과 응답 변환
+
+stores/forecastStore.js
+└── 도시별 예보, 로딩, 오류 상태
+
+components/exercise/ForecastFilter.vue
+└── 도시와 예보 기간 선택
+
+components/exercise/ForecastCard.vue
+└── 날짜별 예보 표시
+
+views/WeatherForecastView.vue
+└── 상태, computed, watcher와 컴포넌트 조립
+```
+
+라우터에는 lazy loading으로 `/forecast` 경로를 추가했습니다.
+
+```js
+{
+  path: '/forecast',
+  name: 'weather-forecast',
+  component: () => import('../views/WeatherForecastView.vue'),
+}
+```
+
+### 11.8 기존 단위 Store 재사용
+
+예보 API의 원본 기온은 섭씨로 유지하고, 기존 `useTemperature` composable을 최고·최저 기온에 각각 적용했습니다.
+
+```js
+const { displayTemp: maxTemp, unitSymbol } = useTemperature(
+  () => props.forecast.maxTemp,
+)
+
+const { displayTemp: minTemp } = useTemperature(
+  () => props.forecast.minTemp,
+)
+```
+
+새 기능에서도 기존 단위 버튼을 누르면 섭씨와 화씨가 함께 변경됩니다. 새 기능을 만들 때 기존 기능을 복사하지 않고 재사용할 수 있는지 먼저 확인했습니다.
+
+---
+
+## 12. Day 8 확장 - 주간 예보 UI 개선
+
+### 12.1 날씨다운 화면 구성
+
+기능 구현 후 처음 화면은 흰색 카드에 텍스트와 Tag만 있어 날씨 서비스라는 느낌이 부족했습니다. PrimeVue 컴포넌트 구조는 유지하면서 날씨 상태가 시각적으로 구분되도록 개선했습니다.
+
+WMO 날씨 코드에 따라 아이콘과 카드 배경 테마를 결정했습니다.
+
+```text
+맑음       → ☀️ 노란색 계열
+흐림       → ⛅ 회색 계열
+안개       → 🌫️ 옅은 회색 계열
+비·소나기 → 🌧️ 파란색 계열
+눈         → 🌨️ 옅은 하늘색 계열
+천둥번개   → ⛈️ 보라색 계열
+```
+
+카드에는 날짜, 날씨 상태, 최고·최저 기온, 강수확률을 정보 중요도 순서로 배치했습니다. hover 시 카드가 조금 올라오도록 해 각 날짜가 독립된 정보 카드라는 점도 표현했습니다.
+
+### 12.2 큰 배너를 제거한 이유
+
+처음에는 화면 상단에 선택 도시와 큰 날씨 아이콘이 들어간 파란색 주간 예보 배너를 추가했습니다. 시각적으로는 화려했지만 이미 애플리케이션 공통 제목과 예보 설정 Panel이 있어 상단 영역이 지나치게 커지고 실제 예보 카드가 아래로 밀렸습니다.
+
+정보 확인이 중심인 화면에서는 장식보다 예보 데이터가 먼저 보여야 한다고 판단해 큰 배너를 제거했습니다. 대신 날씨 아이콘과 색상은 날짜별 카드에 남겨 정보와 장식이 함께 의미를 가지도록 했습니다.
+
+### 12.3 강수확률 색상에 대한 고민
+
+처음에는 PrimeVue Tag의 `warn` severity를 사용해 강수확률 50% 이상을 주황색이나 빨간색으로 표시했습니다.
+
+```js
+forecast.precipitationProbability >= 50 ? 'warn' : 'info'
+```
+
+하지만 강수확률이 높다는 것은 입력 오류나 시스템 위험을 의미하지 않습니다. 빨강과 주황은 경고나 실패처럼 보일 수 있어 날씨 정보의 의미와 맞지 않는다고 판단했습니다.
+
+비와 물을 연상시키는 단일 파랑 계열을 사용하고, 확률이 커질수록 명도를 낮춰 진한 파랑으로 표현했습니다.
+
+```text
+0~19%   흰색
+20~39%  매우 옅은 파랑
+40~59%  옅은 파랑
+60~79%  중간 파랑
+80~100% 진한 파랑
+```
+
+Tag 배경뿐 아니라 강수확률 게이지도 같은 파랑 단계로 통일했습니다. 이를 통해 서로 다른 색이 경쟁하지 않고, 같은 정보가 같은 색 체계로 연결됩니다.
+
+### 12.4 색상만으로 정보를 전달하지 않기
+
+사용자가 파랑의 명도 차이를 구분하지 못하더라도 정보를 이해할 수 있어야 합니다. 따라서 색상 외에도 다음 정보를 함께 유지했습니다.
+
+- 물방울 아이콘
+- `강수확률 92%` 같은 숫자
+- 확률에 따라 달라지는 게이지 길이
+
+색상은 정보를 보조하고 실제 의미는 텍스트와 숫자로도 전달하도록 구성했습니다. 진한 배경에서는 흰색 글자, 옅은 배경에서는 진한 파랑이나 회색 글자를 사용해 가독성도 고려했습니다.
+
+### 12.5 UI 개선 과정에서 배운 점
+
+- 더 화려한 요소가 항상 더 좋은 UI는 아니다.
+- 사용자가 먼저 봐야 하는 정보의 우선순위를 고려해야 한다.
+- 색상은 데이터 의미와 연결되어야 한다.
+- 같은 종류의 데이터는 일관된 색상 체계를 사용하는 것이 좋다.
+- 색상만으로 상태를 전달하지 말고 텍스트와 형태를 함께 제공해야 한다.
+- UI 라이브러리의 기본 severity가 서비스의 의미와 맞지 않으면 그대로 사용하지 않아도 된다.
+
+---
+
+## 13. 전체 데이터 흐름
 
 최종적으로 데이터는 다음과 같이 흐릅니다.
 
@@ -887,11 +1163,26 @@ UnitToggle 클릭
   → Pinia unit 상태 변경
   → useTemperature의 displayTemp 재계산
   → WeatherCard와 WeatherDetailView 온도 표시 갱신
+
+주간 예보 화면 진입 또는 도시 선택
+  → selectedCity watcher 실행
+  → forecastStore.fetchCityForecast(city)
+  → Store에 도시 데이터가 있으면 재사용
+  → 없으면 Open-Meteo API 호출
+  → forecastByCity에 결과 저장
+  → forecastList computed 재계산
+  → selectedDays만큼 visibleForecast 계산
+  → ForecastCard 목록 갱신
+
+예보 기간 선택
+  → selectedDays 변경
+  → visibleForecast와 rainyDays 재계산
+  → 추가 API 요청 없이 화면 갱신
 ```
 
 ---
 
-## 12. 개발 과정에서 특히 주의한 점
+## 14. 개발 과정에서 특히 주의한 점
 
 ### 상태의 위치
 
@@ -909,6 +1200,7 @@ UnitToggle 클릭
 - Composable은 재사용 가능한 반응형 로직 담당
 - API 모듈은 HTTP 요청과 응답 형식 변환 담당
 - UI 라이브러리는 화면 표현을 담당하고 기존 상태 흐름은 유지
+- 새 기능은 현재 학습 범위 안에서 구현하고 불필요한 복잡도는 추가하지 않음
 
 역할을 구분해 특정 기능을 수정할 때 여러 파일을 동시에 고쳐야 하는 상황을 줄였습니다.
 
@@ -930,7 +1222,7 @@ npm run build
 
 ---
 
-## 13. 배운 점과 회고
+## 15. 배운 점과 회고
 
 처음에는 한 파일에 모든 코드를 작성하는 것이 간단해 보였습니다. 하지만 검색, 상세 화면, 전역 단위 설정이 추가되면서 상태와 UI의 역할을 분리할 필요가 생겼습니다.
 
@@ -949,10 +1241,13 @@ npm run build
 - 비동기 요청에는 성공뿐 아니라 로딩과 실패 상태도 필요하다.
 - UI 라이브러리도 버전과 라이선스를 확인하고 설치해야 한다.
 - 자동완성은 기존 검색 상태를 대체하지 않고 보조할 수 있다.
+- watcher는 사용자 선택과 API 요청을 연결하는 데 사용할 수 있다.
+- Store는 앱이 실행되는 동안 이미 받은 데이터를 여러 컴포넌트에서 재사용할 수 있다.
+- UI 색상은 단순한 장식이 아니라 데이터의 의미와 연결되어야 한다.
 
 특히 기능이 확장될수록 단순히 코드를 여러 파일로 나누는 것보다 각 파일이 어떤 책임을 가져야 하는지 결정하는 것이 더 중요하다는 점을 배웠습니다.
 
-## 14. 이후 개선 계획
+## 16. 이후 개선 계획
 
 - 대표 지역 목록을 별도 데이터 파일 또는 Store로 분리
 - 고정 좌표가 아닌 현재 위치 또는 사용자가 선택한 지역 조회
@@ -961,8 +1256,10 @@ npm run build
 - 검색어 대소문자 및 초성 검색 개선
 - Pinia 상태를 localStorage에 저장해 새로고침 후에도 단위 유지
 - 컴포넌트 및 라우터 동작 테스트 추가
+- 예보 API 데이터의 마지막 갱신 시간 표시
+- 예보 카드에 일출·일몰 정보 추가
 
-## 15. 실행 방법
+## 17. 실행 방법
 
 ```sh
 npm install
