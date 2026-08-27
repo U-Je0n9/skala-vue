@@ -3,21 +3,26 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTemperature } from '@/composables/useTemperature'
 import { useWeather } from '@/composables/useWeather'
+import { useCityStore } from '@/stores/cityStore'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
 
 const router = useRouter()
 const route = useRoute()
+const cityStore = useCityStore()
 
 const { weatherData: weatherList, isLoading, errorMessage, getWeather } = useWeather()
 const weather = computed(() => {
-  return weatherList.value?.find((city) => city.id === route.params.id)
+  return [...(weatherList.value ?? []), ...cityStore.savedWeather].find(
+    (city) => city.id === route.params.id,
+  )
 })
 const { displayTemp, unitSymbol } = useTemperature(() => weather.value?.temp ?? 0)
 
 onMounted(() => {
   getWeather()
+  cityStore.refreshSavedCities()
 })
 </script>
 

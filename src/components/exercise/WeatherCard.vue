@@ -9,9 +9,13 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  isFavorite: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['select-card', 'click-detail'])
+const emit = defineEmits(['select-card', 'click-detail', 'toggle-favorite'])
 const { displayTemp, unitSymbol } = useTemperature(() => props.weather.temp)
 </script>
 
@@ -20,15 +24,27 @@ const { displayTemp, unitSymbol } = useTemperature(() => props.weather.temp)
     <template #title>
       <div class="card-header">
         <span>{{ weather.name }} ({{ weather.status }})</span>
-        <Button
-          type="button"
-          label="상세보기"
-          icon="pi pi-arrow-right"
-          icon-pos="right"
-          size="small"
-          outlined
-          @click.stop="emit('click-detail', weather)"
-        ></Button>
+        <div class="card-actions">
+          <Button
+            type="button"
+            :icon="isFavorite ? 'pi pi-star-fill' : 'pi pi-star'"
+            :aria-label="isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'"
+            :severity="isFavorite ? 'warn' : 'secondary'"
+            size="small"
+            text
+            rounded
+            @click.stop="emit('toggle-favorite', weather)"
+          ></Button>
+          <Button
+            type="button"
+            label="상세보기"
+            icon="pi pi-arrow-right"
+            icon-pos="right"
+            size="small"
+            outlined
+            @click.stop="emit('click-detail', weather)"
+          ></Button>
+        </div>
       </div>
     </template>
     <template #content>
@@ -63,6 +79,12 @@ const { displayTemp, unitSymbol } = useTemperature(() => props.weather.temp)
 
 .card-header span {
   min-width: 0;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .weather-card p {

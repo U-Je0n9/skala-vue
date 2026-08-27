@@ -36,6 +36,8 @@ export const fetchForecast = async (city) => {
         'temperature_2m_max',
         'temperature_2m_min',
         'precipitation_probability_max',
+        'sunrise',
+        'sunset',
       ].join(','),
       timezone: 'Asia/Seoul',
       forecast_days: 7,
@@ -51,5 +53,7 @@ export const fetchForecast = async (city) => {
     maxTemp: Math.round(daily.temperature_2m_max[index]),
     minTemp: Math.round(daily.temperature_2m_min[index]),
     precipitationProbability: daily.precipitation_probability_max[index],
+    sunrise: daily.sunrise[index],
+    sunset: daily.sunset[index],
   }))
 }

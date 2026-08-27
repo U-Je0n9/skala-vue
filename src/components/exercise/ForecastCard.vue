@@ -68,6 +68,8 @@ const formatDate = (date) => {
     weekday: 'short',
   }).format(new Date(`${date}T00:00:00`))
 }
+
+const formatTime = (dateTime) => dateTime?.slice(11, 16) ?? '--:--'
 </script>
 
 <template>
@@ -85,6 +87,10 @@ const formatDate = (date) => {
       <div class="temperature">
         <span><small>최고</small>{{ maxTemp }}{{ unitSymbol }}</span>
         <span><small>최저</small>{{ minTemp }}{{ unitSymbol }}</span>
+      </div>
+      <div class="sun-times">
+        <span>🌅 일출 {{ formatTime(forecast.sunrise) }}</span>
+        <span>🌇 일몰 {{ formatTime(forecast.sunset) }}</span>
       </div>
       <div class="rain-info">
         <Tag
@@ -182,6 +188,16 @@ const formatDate = (date) => {
 .rain-info {
   display: grid;
   gap: 9px;
+}
+
+.sun-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: -4px 0 16px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .rain-progress {

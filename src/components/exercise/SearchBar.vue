@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import AutoComplete from 'primevue/autocomplete'
+import Button from 'primevue/button'
 
 const props = defineProps({
   searchQuery: {
@@ -13,7 +14,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update-query'])
+const emit = defineEmits(['update-query', 'add-city'])
 const suggestions = ref([])
 
 const searchCities = (event) => {
@@ -26,20 +27,23 @@ const searchCities = (event) => {
 </script>
 
 <template>
-  <div class="search-bar">
+  <form class="search-bar" @submit.prevent="emit('add-city', searchQuery)">
     <label for="weather-search">검색할 도시 이름 입력</label>
-    <AutoComplete
-      input-id="weather-search"
-      :model-value="searchQuery"
-      :suggestions="suggestions"
-      placeholder="예: 서울"
-      dropdown
-      complete-on-focus
-      @complete="searchCities"
-      @update:model-value="emit('update-query', $event)"
-    ></AutoComplete>
+    <div class="search-input-row">
+      <AutoComplete
+        input-id="weather-search"
+        :model-value="searchQuery"
+        :suggestions="suggestions"
+        placeholder="예: 대전"
+        dropdown
+        complete-on-focus
+        @complete="searchCities"
+        @update:model-value="emit('update-query', $event)"
+      ></AutoComplete>
+      <Button type="submit" label="도시 추가" icon="pi pi-plus"></Button>
+    </div>
     <p>검색 중인 도시: {{ searchQuery || '없음' }}</p>
-  </div>
+  </form>
 </template>
 
 <style scoped>
@@ -54,14 +58,30 @@ const searchCities = (event) => {
   font-weight: 700;
 }
 
+.search-input-row {
+  display: flex;
+  gap: 8px;
+}
+
 .search-bar :deep(.p-autocomplete),
 .search-bar :deep(.p-autocomplete-input) {
   width: 100%;
+}
+
+.search-input-row :deep(.p-autocomplete) {
+  flex: 1;
 }
 
 .search-bar p {
   margin: 0;
   color: #64748b;
   font-size: 13px;
+}
+
+@media (max-width: 520px) {
+  .search-input-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 </style>

@@ -6,14 +6,8 @@ import BaseDashboardCard from '@/components/exercise/BaseDashboardCard.vue'
 import ForecastCard from '@/components/exercise/ForecastCard.vue'
 import ForecastFilter from '@/components/exercise/ForecastFilter.vue'
 import { useForecastStore } from '@/stores/forecastStore'
-
-const cities = [
-  { name: '판교', lat: 37.4058453, lon: 127.0998294 },
-  { name: '서울', lat: 37.5665, lon: 126.978 },
-  { name: '수원', lat: 37.2636, lon: 127.0286 },
-  { name: '부산', lat: 35.1796, lon: 129.0756 },
-  { name: '제주', lat: 33.4996, lon: 126.5312 },
-]
+import { useCityStore } from '@/stores/cityStore'
+import { defaultCities } from '@/api/weatherApi'
 
 const dayOptions = [
   { label: '3일', value: 3 },
@@ -22,7 +16,16 @@ const dayOptions = [
 ]
 
 const forecastStore = useForecastStore()
-const selectedCity = ref(cities[0])
+const cityStore = useCityStore()
+const cities = computed(() => {
+  const allCities = [...defaultCities, ...cityStore.savedLocations]
+  const uniqueCities = [
+    ...new Map(allCities.map((city) => [`${city.lat},${city.lon}`, city])).values(),
+  ]
+
+  return cityStore.sortByFavorites(uniqueCities)
+})
+const selectedCity = ref(cities.value[0])
 const selectedDays = ref(5)
 
 const forecastList = computed(() => {
