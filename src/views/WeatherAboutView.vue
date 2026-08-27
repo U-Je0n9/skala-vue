@@ -1,7 +1,7 @@
 <template>
   <section class="about-card">
     <div class="about-intro">
-      <span class="about-label">MY WEATHER SERVICE</span>
+      <span class="about-label">TODAY'S SKY</span>
       <h2>오늘부터 일주일까지,<br />내가 궁금한 도시의 날씨를 한눈에</h2>
       <p>
         자주 확인하는 지역은 빠르게 살펴보고, 새로운 도시는 직접 검색해 추가할 수 있는

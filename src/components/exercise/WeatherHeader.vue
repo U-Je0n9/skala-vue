@@ -18,7 +18,10 @@ const formatTime = (dateTime) => dateTime?.slice(11, 16) ?? '--:--'
         <span>🌇 오늘 일몰 {{ formatTime(todayForecast.sunset) }}</span>
       </p>
     </div>
-    <h1>🌤️ 종합실습 5: 스토어적용</h1>
+    <div class="service-title">
+      <h1>🌤️ 오늘의 하늘</h1>
+      <p>내 도시의 날씨와 대기질을 한눈에 확인하세요.</p>
+    </div>
     <nav>
       <div class="nav-links">
         <RouterLink to="/">🌤️ 날씨 대시보드</RouterLink>
@@ -32,7 +35,9 @@ const formatTime = (dateTime) => dateTime?.slice(11, 16) ?? '--:--'
 
 <style scoped>
 header { margin-bottom: 22px; }
-h1 { margin: 0 0 20px; color: #0f172a; font-size: 27px; }
+h1 { margin: 0; color: #0f172a; font-size: 27px; }
+.service-title { margin-bottom: 20px; }
+.service-title p { margin: 6px 0 0 42px; color: #64748b; font-size: 13px; }
 .weather-summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 12px; }
 .weather-recommendation { margin: 0; color: #0369a1; font-size: 14px; font-weight: 700; }
 .today-sun-times { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 14px; margin: 0 0 0 auto; color: #64748b; font-size: 11px; font-weight: 600; }
@@ -43,6 +48,7 @@ nav a:hover, nav a.router-link-exact-active { background: #e0f2fe; color: #0284c
 
 @media (max-width: 520px) {
   h1 { font-size: 22px; }
+  .service-title p { margin-left: 0; }
   .weather-summary { align-items: flex-start; flex-direction: column; gap: 6px; }
   .today-sun-times { align-self: flex-end; }
   nav { align-items: stretch; flex-direction: column; gap: 12px; }
