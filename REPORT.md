@@ -16,6 +16,8 @@ Day 3: 컴포넌트 분리와 props/emits/slot
 Day 4: Vue Router와 여러 페이지 구성
   ↓
 Day 5: Pinia 전역 상태와 composable
+  ↓
+Day 6: OpenWeather API 연동
 ```
 
 사용한 날씨 데이터는 실제 API가 아닌 Mock Data입니다.
@@ -479,7 +481,182 @@ composable이 일반 숫자뿐 아니라 ref나 getter도 받을 수 있도록 `
 
 ---
 
-## 8. 전체 데이터 흐름
+## 8. Day 6 - OpenWeather API 연동
+
+### 8.1 구현 목표
+
+이전 단계까지는 직접 작성한 Mock Data를 사용했습니다. 이번 단계에서는 기존 컴포넌트와 검색 구조를 최대한 유지하면서 고정된 위도와 경도의 실제 날씨 데이터를 OpenWeather API로 받아오도록 확장했습니다.
+
+사용한 요청 조건은 다음과 같습니다.
+
+- 위도: `37.4058453`
+- 경도: `127.0998294`
+- 단위: `metric`
+- 응답 언어: `kr`
+
+API 요청은 Axios를 사용했습니다.
+
+```js
+export const fetchWeather = async () => {
+  const response = await axios.get(WEATHER_URL)
+  return normalizeWeather(response.data)
+}
+```
+
+### 8.2 파일 역할 분리
+
+API 코드를 모두 `WeatherHomeView.vue`에 넣을 수도 있지만, 상세 화면에서도 같은 요청이 필요하기 때문에 다음과 같이 역할을 나눴습니다.
+
+```text
+api/weatherApi.js
+└── 실제 Axios 요청과 응답 데이터 변환
+
+composables/useWeather.js
+└── weatherData, isLoading, errorMessage 상태 관리
+
+WeatherHomeView.vue
+└── API 결과를 카드 목록으로 표시하고 검색
+
+WeatherDetailView.vue
+└── 같은 API 결과를 상세 정보로 표시
+```
+
+`useWeather`에서는 요청 성공, 실패, 종료 시점에 맞춰 상태를 변경합니다.
+
+```js
+const weatherData = ref(null)
+const isLoading = ref(false)
+const errorMessage = ref('')
+```
+
+이를 통해 View 컴포넌트는 Axios의 세부 처리보다 로딩 화면, 오류 화면, 성공 화면을 표시하는 데 집중할 수 있었습니다.
+
+### 8.3 API 응답 구조 변환
+
+기존 `WeatherCard`는 다음과 같은 평평한 데이터 구조를 사용합니다.
+
+```js
+{
+  id,
+  name,
+  temp,
+  status,
+  humidity,
+  wind,
+}
+```
+
+그러나 OpenWeather의 온도, 습도, 날씨 상태는 `main.temp`, `main.humidity`, `weather[0]`처럼 중첩되어 있습니다. 기존 컴포넌트를 수정하지 않고 사용하기 위해 API 계층에서 응답을 변환했습니다.
+
+```js
+const normalizeWeather = (data) => ({
+  id: String(data.id),
+  name: '판교',
+  temp: Math.round(data.main.temp),
+  status:
+    weatherStatusMap[data.weather[0]?.main] ??
+    data.weather[0]?.description ??
+    '정보 없음',
+  humidity: data.main.humidity,
+  wind: data.wind.speed,
+})
+```
+
+이 방법을 사용하면 API 응답 구조가 바뀌더라도 `WeatherCard`와 View를 모두 수정할 필요 없이 변환 함수만 확인할 수 있습니다.
+
+### 8.4 기존 검색 기능 유지
+
+고정 위도·경도 API는 한 지역의 데이터만 반환합니다. 처음에는 검색어를 API의 도시명 파라미터로 보내도록 변경했지만, 이것은 지정된 고정 좌표를 사용한다는 실습 조건과 맞지 않았습니다. 또한 기존의 반응형 목록 검색 기능도 사라졌습니다.
+
+따라서 API는 화면 진입 시 한 번 호출하고, 결과를 기존 `weatherList` 형태의 배열로 만든 뒤 `filteredWeatherList` computed가 검색을 담당하도록 복구했습니다.
+
+```js
+const weatherList = computed(() => {
+  return weatherData.value ? [weatherData.value] : []
+})
+
+const filteredWeatherList = computed(() => {
+  return weatherList.value.filter((city) =>
+    city.name.includes(searchQuery.value.trim()),
+  )
+})
+```
+
+```js
+onMounted(() => {
+  getWeather()
+})
+```
+
+현재 API 결과가 한 지역뿐이므로 검색 가능한 목록도 판교 한 곳입니다. 여러 도시 검색이 필요하다면 고정 좌표 요청을 여러 번 수행하거나 도시명 검색 API를 별도 기능으로 추가해야 합니다.
+
+### 8.5 트러블슈팅
+
+#### 지역 이름이 영어로 표시됨
+
+요청 URL에 `lang=kr`을 넣었지만 지역 이름은 영어로 반환됐습니다. `lang` 옵션은 주로 날씨 설명에 적용되며 좌표 기반 지역명까지 항상 한글로 바꾸지는 않습니다.
+
+이번 실습의 좌표가 고정되어 있으므로 화면 표시용 이름을 `판교`로 변환했습니다.
+
+```js
+name: '판교'
+```
+
+좌표가 동적으로 바뀌는 서비스라면 이름을 고정하면 안 되며, 별도의 역지오코딩 결과나 도시 이름 매핑 데이터가 필요합니다.
+
+#### 날씨 상태가 `온흐림`으로 표시됨
+
+OpenWeather의 `description`을 그대로 출력했을 때 `overcast clouds`가 `온흐림`처럼 어색하게 번역되어 반환됐습니다. 사람이 읽기 쉬운 표현을 사용하기 위해 `weather[0].main` 값을 기준으로 상태를 매핑했습니다.
+
+```js
+const weatherStatusMap = {
+  Clear: '맑음',
+  Clouds: '흐림',
+  Rain: '비',
+  Drizzle: '이슬비',
+  Thunderstorm: '천둥번개',
+  Snow: '눈',
+  Mist: '안개',
+  Fog: '안개',
+  Haze: '실안개',
+}
+```
+
+API에서 받은 문장을 무조건 그대로 출력하기보다 화면 요구사항에 맞는 표시용 데이터로 변환하는 과정이 필요하다는 점을 배웠습니다.
+
+#### API를 연결하면서 검색 기능이 사라짐
+
+API 검색 버튼을 추가하면서 기존 `filteredWeatherList`가 제거된 적이 있었습니다. 새로운 기능을 추가할 때 기존 기능을 대체해 버린 것이 원인이었습니다.
+
+이후 다음 원칙으로 다시 수정했습니다.
+
+```text
+기존 searchQuery 유지
+기존 update-query 이벤트 유지
+기존 filteredWeatherList computed 유지
+API 호출만 onMounted에 최소 추가
+```
+
+기능을 확장할 때는 먼저 기존 데이터 흐름을 확인하고, 필요한 지점에만 새로운 로직을 추가해야 한다는 점을 확인했습니다.
+
+#### 로딩과 오류 상태
+
+API 요청은 즉시 완료된다는 보장이 없으므로 로딩 중에는 카드를 표시하지 않고 안내 문구를 보여줬습니다. 요청 실패 시에는 빈 화면 대신 `errorMessage`를 표시했습니다.
+
+```html
+<p v-if="isLoading">날씨 데이터를 불러오는 중입니다...</p>
+<p v-else-if="errorMessage">{{ errorMessage }}</p>
+```
+
+### 8.6 API 키 관련 주의사항
+
+현재 실습에서는 제공받은 URL을 그대로 사용하기 위해 API 키가 URL에 포함되어 있습니다. 하지만 프런트엔드 코드는 브라우저로 전달되므로 소스 코드나 환경변수에 넣더라도 사용자가 키를 확인할 수 있습니다.
+
+실제 배포 서비스에서는 백엔드 서버가 OpenWeather에 요청하도록 구성하고, 프런트엔드는 백엔드 API만 호출하는 방식으로 키를 보호해야 합니다.
+
+---
+
+## 9. 전체 데이터 흐름
 
 최종적으로 데이터는 다음과 같이 흐릅니다.
 
@@ -490,11 +667,19 @@ SearchBar 입력
   → filteredWeatherList computed 재계산
   → WeatherCard 목록 갱신
 
+WeatherHomeView 화면 진입
+  → onMounted 실행
+  → useWeather.getWeather()
+  → weatherApi에서 고정 좌표 API 호출
+  → OpenWeather 응답을 카드 데이터 형태로 변환
+  → weatherData 변경
+  → weatherList와 filteredWeatherList 재계산
+
 WeatherCard 상세보기
   → click-detail emit
   → WeatherHomeView의 router.push()
   → /weather/:id 이동
-  → WeatherDetailView가 route.params.id로 도시 조회
+  → WeatherDetailView에서 동일한 고정 좌표 API 호출
 
 UnitToggle 클릭
   → configStore.toggleUnit()
@@ -505,7 +690,7 @@ UnitToggle 클릭
 
 ---
 
-## 9. 개발 과정에서 특히 주의한 점
+## 10. 개발 과정에서 특히 주의한 점
 
 ### 상태의 위치
 
@@ -521,6 +706,7 @@ UnitToggle 클릭
 - 공통 컴포넌트는 화면 표현 담당
 - Store는 전역 설정 담당
 - Composable은 재사용 가능한 반응형 로직 담당
+- API 모듈은 HTTP 요청과 응답 형식 변환 담당
 
 역할을 구분해 특정 기능을 수정할 때 여러 파일을 동시에 고쳐야 하는 상황을 줄였습니다.
 
@@ -542,7 +728,7 @@ npm run build
 
 ---
 
-## 10. 배운 점과 회고
+## 11. 배운 점과 회고
 
 처음에는 한 파일에 모든 코드를 작성하는 것이 간단해 보였습니다. 하지만 검색, 상세 화면, 전역 단위 설정이 추가되면서 상태와 UI의 역할을 분리할 필요가 생겼습니다.
 
@@ -557,20 +743,22 @@ npm run build
 - Vue Router는 URL과 화면을 연결한다.
 - Pinia는 여러 컴포넌트와 페이지가 공유하는 상태를 관리한다.
 - composable은 여러 곳에서 반복되는 반응형 로직을 재사용한다.
+- 외부 API 데이터는 기존 UI가 사용하는 형태로 변환해 전달한다.
+- 비동기 요청에는 성공뿐 아니라 로딩과 실패 상태도 필요하다.
 
 특히 기능이 확장될수록 단순히 코드를 여러 파일로 나누는 것보다 각 파일이 어떤 책임을 가져야 하는지 결정하는 것이 더 중요하다는 점을 배웠습니다.
 
-## 11. 이후 개선 계획
+## 12. 이후 개선 계획
 
-- `UnitToggle`을 공통 내비게이션 영역에 배치해 모든 페이지에서 단위를 변경할 수 있도록 연결
-- Mock Data를 별도의 데이터 모듈로 분리해 홈, 상세 화면, 라우트 가드의 중복 제거
-- 실제 날씨 API 연동
-- API 로딩, 실패, 빈 결과 상태 처리
+- 여러 지역의 API 데이터를 배열로 관리해 검색 범위 확장
+- 고정 좌표가 아닌 현재 위치 또는 사용자가 선택한 지역 조회
+- API 요청 결과 캐싱으로 홈과 상세 화면의 중복 요청 감소
+- 백엔드 프록시를 사용해 API 키 보호
 - 검색어 대소문자 및 초성 검색 개선
 - Pinia 상태를 localStorage에 저장해 새로고침 후에도 단위 유지
 - 컴포넌트 및 라우터 동작 테스트 추가
 
-## 12. 실행 방법
+## 13. 실행 방법
 
 ```sh
 npm install
