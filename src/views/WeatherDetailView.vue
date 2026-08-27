@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useTemperature } from '@/composables/useTemperature'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +13,7 @@ const weatherList = [
 ]
 
 const weather = computed(() => weatherList.find((city) => city.id === route.params.id))
+const { displayTemp, unitSymbol } = useTemperature(() => weather.value.temp)
 </script>
 
 <template>
@@ -19,7 +21,7 @@ const weather = computed(() => weatherList.find((city) => city.id === route.para
     <h2>🌡️ {{ weather.name }} 상세 날씨</h2>
     <dl>
       <div><dt>날씨</dt><dd>{{ weather.status }}</dd></div>
-      <div><dt>현재 기온</dt><dd>{{ weather.temp }}°C</dd></div>
+      <div><dt>현재 기온</dt><dd>{{ displayTemp }}{{ unitSymbol }}</dd></div>
       <div><dt>습도</dt><dd>{{ weather.humidity }}%</dd></div>
       <div><dt>풍속</dt><dd>{{ weather.wind }}m/s</dd></div>
     </dl>

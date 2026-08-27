@@ -1,10 +1,18 @@
+<script setup>
+import UnitToggle from '@/components/exercise/UnitToggle.vue'
+</script>
+
 <template>
   <div class="app-shell">
     <header>
-      <h1>🌤️ 과제 4: 라우터 적용</h1>
+      <h1>🌤️ 종합실습 5: 스토어적용</h1>
       <nav>
-        <RouterLink to="/">날씨 대시보드</RouterLink>
-        <RouterLink to="/about">서비스 소개</RouterLink>
+        <div class="nav-links">
+          <RouterLink to="/">🌤️ 날씨 대시보드</RouterLink>
+          <RouterLink to="/about">📘 서비스 소개</RouterLink>
+        </div>
+
+        <UnitToggle></UnitToggle>
       </nav>
     </header>
 
@@ -30,10 +38,16 @@ header h1 {
 
 nav {
   display: flex;
-  justify-content: center;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid #e2e8f0;
+}
+
+.nav-links {
+  display: flex;
+  gap: 8px;
 }
 
 nav a {
@@ -57,6 +71,16 @@ nav a.router-link-exact-active {
 
   header h1 {
     font-size: 22px;
+  }
+
+  nav {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .nav-links {
+    flex-wrap: wrap;
   }
 }
 </style>

@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { useTemperature } from '@/composables/useTemperature'
+
+const props = defineProps({
   weather: {
     type: Object,
     required: true,
@@ -7,13 +9,15 @@ defineProps({
 })
 
 const emit = defineEmits(['select-card', 'click-detail'])
+
+const { displayTemp, unitSymbol } = useTemperature(() => props.weather.temp)
 </script>
 
 <template>
   <article class="weather-card" @click="emit('select-card', weather)">
     <div>
       <h3>{{ weather.name }} ({{ weather.status }})</h3>
-      <p>현재 기온: {{ weather.temp }}°C</p>
+      <p>현재 기온: {{ displayTemp }}{{ unitSymbol }}</p>
       <span :class="weather.temp < 25 ? 'cool' : 'hot'">
         {{ weather.temp < 25 ? '❄️ 선선함' : '🔥 더움' }}
       </span>
