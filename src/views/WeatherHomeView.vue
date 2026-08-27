@@ -11,7 +11,7 @@ const searchQuery = ref('')
 const selectedCityInfo = ref('')
 const { weatherData, isLoading, errorMessage, getWeather } = useWeather()
 
-const weatherList = computed(() => (weatherData.value ? [weatherData.value] : []))
+const weatherList = computed(() => weatherData.value ?? [])
 
 const filteredWeatherList = computed(() => {
   return weatherList.value.filter((city) => city.name.includes(searchQuery.value.trim()))

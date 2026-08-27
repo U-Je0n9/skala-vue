@@ -1,12 +1,16 @@
 <script setup>
-import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useTemperature } from '@/composables/useTemperature'
 import { useWeather } from '@/composables/useWeather'
 
 const router = useRouter()
+const route = useRoute()
 
-const { weatherData: weather, isLoading, errorMessage, getWeather } = useWeather()
+const { weatherData: weatherList, isLoading, errorMessage, getWeather } = useWeather()
+const weather = computed(() => {
+  return weatherList.value?.find((city) => city.id === route.params.id)
+})
 const { displayTemp, unitSymbol } = useTemperature(() => weather.value?.temp ?? 0)
 
 onMounted(() => {
@@ -27,10 +31,22 @@ onMounted(() => {
   <section v-else-if="weather" class="detail-card">
     <h2>🌡️ {{ weather.name }} 상세 날씨</h2>
     <dl>
-      <div><dt>날씨</dt><dd>{{ weather.status }}</dd></div>
-      <div><dt>현재 기온</dt><dd>{{ displayTemp }}{{ unitSymbol }}</dd></div>
-      <div><dt>습도</dt><dd>{{ weather.humidity }}%</dd></div>
-      <div><dt>풍속</dt><dd>{{ weather.wind }}m/s</dd></div>
+      <div>
+        <dt>날씨</dt>
+        <dd>{{ weather.status }}</dd>
+      </div>
+      <div>
+        <dt>현재 기온</dt>
+        <dd>{{ displayTemp }}{{ unitSymbol }}</dd>
+      </div>
+      <div>
+        <dt>습도</dt>
+        <dd>{{ weather.humidity }}%</dd>
+      </div>
+      <div>
+        <dt>풍속</dt>
+        <dd>{{ weather.wind }}m/s</dd>
+      </div>
     </dl>
     <button type="button" @click="router.push('/')">목록으로 돌아가기</button>
   </section>
