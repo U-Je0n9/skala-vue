@@ -1,12 +1,14 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTemperature } from '@/composables/useTemperature'
 import { useWeather } from '@/composables/useWeather'
 import { useCityStore } from '@/stores/cityStore'
+import { useAirQuality } from '@/composables/useAirQuality'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
+import Tag from 'primevue/tag'
 
 const router = useRouter()
 const route = useRoute()
@@ -19,6 +21,26 @@ const weather = computed(() => {
   )
 })
 const { displayTemp, unitSymbol } = useTemperature(() => weather.value?.temp ?? 0)
+const { airQuality, isAirLoading, airErrorMessage, getAirQuality } = useAirQuality()
+const hasMissingAirData = computed(() => {
+  if (!airQuality.value) return false
+  return [airQuality.value.pm10Value, airQuality.value.pm25Value, airQuality.value.khaiValue].some(
+    (value) => value === null,
+  )
+})
+
+const formatDustValue = (value) => (value === null ? '미수신' : `${value}㎍/㎥`)
+const gradeSeverity = (grade) => {
+  return { 좋음: 'info', 보통: 'success', 나쁨: 'warn', '매우 나쁨': 'danger' }[grade]
+}
+
+watch(
+  weather,
+  (city) => {
+    if (city) getAirQuality(city)
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   getWeather()
@@ -57,6 +79,51 @@ onMounted(() => {
         <dd>{{ weather.wind }}m/s</dd>
       </div>
     </dl>
+
+    <section class="air-quality">
+      <div class="air-quality-title">
+        <h3>🌿 현재 대기질</h3>
+        <span v-if="airQuality">{{ airQuality.stationName }} 측정소 · {{ airQuality.dataTime }}</span>
+      </div>
+
+      <div v-if="isAirLoading" class="air-state">
+        <ProgressSpinner class="air-spinner" stroke-width="5"></ProgressSpinner>
+        <span>미세먼지 정보를 불러오는 중입니다...</span>
+      </div>
+      <Message v-else-if="airErrorMessage" severity="secondary">{{ airErrorMessage }}</Message>
+      <template v-else-if="airQuality">
+        <Message v-if="airQuality.isAutoSelected" severity="info" class="air-notice">
+          검색 도시와 같은 시도의 측정 가능한 {{ airQuality.stationName }} 측정소 정보입니다.
+        </Message>
+        <Message v-if="hasMissingAirData" severity="warn" class="air-notice">
+          측정소 점검 또는 통신 상태로 일부 대기질 값이 수신되지 않았습니다.
+        </Message>
+        <dl class="air-quality-list">
+          <div>
+            <dt>미세먼지</dt>
+            <dd>
+              {{ formatDustValue(airQuality.pm10Value) }}
+              <Tag :severity="gradeSeverity(airQuality.pm10Grade)" :value="airQuality.pm10Grade"></Tag>
+            </dd>
+          </div>
+          <div>
+            <dt>초미세먼지</dt>
+            <dd>
+              {{ formatDustValue(airQuality.pm25Value) }}
+              <Tag :severity="gradeSeverity(airQuality.pm25Grade)" :value="airQuality.pm25Grade"></Tag>
+            </dd>
+          </div>
+          <div>
+            <dt>통합대기환경지수</dt>
+            <dd>
+              {{ airQuality.khaiValue ?? '미수신' }}
+              <Tag :severity="gradeSeverity(airQuality.khaiGrade)" :value="airQuality.khaiGrade"></Tag>
+            </dd>
+          </div>
+        </dl>
+      </template>
+    </section>
+
     <Button label="목록으로 돌아가기" icon="pi pi-arrow-left" @click="router.push('/')"></Button>
   </section>
 </template>
@@ -106,6 +173,30 @@ onMounted(() => {
   font-weight: 700;
   cursor: pointer;
 }
+
+.air-quality {
+  margin: 20px 0;
+  padding: 18px;
+  border: 1px solid #d1fae5;
+  border-radius: 12px;
+  background: #f0fdf4;
+}
+
+.air-quality-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.air-quality-title h3 { margin: 0; color: #14532d; }
+.air-quality-title span { color: #64748b; font-size: 11px; }
+.detail-card .air-quality-list { margin: 10px 0 0; background: rgba(255, 255, 255, 0.7); }
+.air-quality-list dd { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.air-state { display: flex; align-items: center; gap: 10px; color: #64748b; font-size: 13px; }
+.air-spinner { width: 24px; height: 24px; }
+.air-notice { margin-bottom: 10px; }
 
 .state-message {
   display: grid;

@@ -20,7 +20,7 @@ const cityStore = useCityStore()
 const cities = computed(() => {
   const allCities = [...defaultCities, ...cityStore.savedLocations]
   const uniqueCities = [
-    ...new Map(allCities.map((city) => [`${city.lat},${city.lon}`, city])).values(),
+    ...new Map(allCities.map((city) => [city.name, city])).values(),
   ]
 
   return cityStore.sortByFavorites(uniqueCities)
