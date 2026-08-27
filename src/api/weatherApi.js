@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_KEY = 'd3b51deaad04ca859fd5f05b408de52a'
+const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY
 const WEATHER_URL = 'https://api.openweathermap.org/data/2.5/weather'
 const GEOCODING_URL = 'https://api.openweathermap.org/geo/1.0/direct'
 
@@ -53,6 +53,8 @@ const normalizeWeather = (data, city) => ({
 })
 
 export const fetchCityWeather = async (city) => {
+  if (!API_KEY) throw new Error('OpenWeather API 인증키가 없습니다.')
+
   const response = await axios.get(WEATHER_URL, {
     params: {
       lat: city.lat,
@@ -67,6 +69,8 @@ export const fetchCityWeather = async (city) => {
 }
 
 export const searchCityLocation = async (query) => {
+  if (!API_KEY) throw new Error('OpenWeather API 인증키가 없습니다.')
+
   const response = await axios.get(GEOCODING_URL, {
     params: {
       q: `${query},KR`,
