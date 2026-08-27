@@ -18,9 +18,11 @@ Day 4: Vue Router와 여러 페이지 구성
 Day 5: Pinia 전역 상태와 composable
   ↓
 Day 6: OpenWeather API 연동
+  ↓
+Day 7: 대표 5지역 확장과 PrimeVue 적용
 ```
 
-사용한 날씨 데이터는 실제 API가 아닌 Mock Data입니다.
+Day 1부터 Day 5까지는 다음과 같은 Mock Data를 사용했고, Day 6부터 실제 OpenWeather API 데이터로 교체했습니다.
 
 ```js
 [
@@ -566,14 +568,12 @@ const normalizeWeather = (data) => ({
 
 ### 8.4 기존 검색 기능 유지
 
-고정 위도·경도 API는 한 지역의 데이터만 반환합니다. 처음에는 검색어를 API의 도시명 파라미터로 보내도록 변경했지만, 이것은 지정된 고정 좌표를 사용한다는 실습 조건과 맞지 않았습니다. 또한 기존의 반응형 목록 검색 기능도 사라졌습니다.
+고정 위도·경도 API 요청 하나는 한 지역의 데이터만 반환합니다. 처음에는 검색어를 API의 도시명 파라미터로 보내도록 변경했지만, 이것은 지정된 좌표를 사용한다는 실습 조건과 맞지 않았습니다. 또한 기존의 반응형 목록 검색 기능도 사라졌습니다.
 
 따라서 API는 화면 진입 시 한 번 호출하고, 결과를 기존 `weatherList` 형태의 배열로 만든 뒤 `filteredWeatherList` computed가 검색을 담당하도록 복구했습니다.
 
 ```js
-const weatherList = computed(() => {
-  return weatherData.value ? [weatherData.value] : []
-})
+const weatherList = computed(() => weatherData.value ?? [])
 
 const filteredWeatherList = computed(() => {
   return weatherList.value.filter((city) =>
@@ -588,7 +588,7 @@ onMounted(() => {
 })
 ```
 
-현재 API 결과가 한 지역뿐이므로 검색 가능한 목록도 판교 한 곳입니다. 여러 도시 검색이 필요하다면 고정 좌표 요청을 여러 번 수행하거나 도시명 검색 API를 별도 기능으로 추가해야 합니다.
+이후 대표 5지역으로 확장한 뒤에도 검색어를 입력할 때 API를 다시 호출하지 않고, 처음 받아온 다섯 지역 배열을 computed로 필터링하는 구조를 유지했습니다.
 
 ### 8.5 트러블슈팅
 
@@ -656,7 +656,201 @@ API 요청은 즉시 완료된다는 보장이 없으므로 로딩 중에는 카
 
 ---
 
-## 9. 전체 데이터 흐름
+## 9. Day 7 - 대표 5지역 날씨 확장
+
+### 9.1 확장한 이유
+
+판교 한 지역만 API로 받아오면 검색창에 서울이나 부산을 입력했을 때 항상 결과가 없었습니다. 그렇다고 전국의 모든 지역을 미리 요청하면 API 호출 수가 너무 많아집니다.
+
+따라서 실습 화면에서 사용할 대표 지역 다섯 곳만 선정했습니다.
+
+```js
+const cities = [
+  { name: '판교', lat: 37.4058453, lon: 127.0998294 },
+  { name: '서울', lat: 37.5665, lon: 126.978 },
+  { name: '수원', lat: 37.2636, lon: 127.0286 },
+  { name: '부산', lat: 35.1796, lon: 129.0756 },
+  { name: '제주', lat: 33.4996, lon: 126.5312 },
+]
+```
+
+### 9.2 기존 판교 요청 방식 재사용
+
+기존 API URL과 API 키, 단위와 언어 설정을 그대로 유지하고 도시별 위도·경도만 바꿔 요청했습니다.
+
+```js
+const requests = cities.map(async (city) => {
+  const response = await axios.get(WEATHER_URL, {
+    params: {
+      lat: city.lat,
+      lon: city.lon,
+      appid: API_KEY,
+      units: 'metric',
+      lang: 'kr',
+    },
+  })
+
+  return normalizeWeather(response.data, city.name)
+})
+
+return Promise.all(requests)
+```
+
+각 요청 결과를 `Promise.all()`로 모아 `weatherData`에 배열로 저장했습니다. 홈 화면에서는 기존 코드 중 한 줄만 배열에 맞게 변경했습니다.
+
+```js
+const weatherList = computed(() => weatherData.value ?? [])
+```
+
+### 9.3 검색 시 API를 다시 호출하지 않는 구조
+
+대표 지역의 API 요청은 화면 진입 시 수행됩니다. 검색창에 한 글자를 입력할 때마다 API를 호출하는 방식이 아니라, 이미 받은 다섯 지역을 기존 computed가 필터링합니다.
+
+```text
+최초 화면 진입
+→ 대표 5지역 API 요청
+→ weatherData 배열 저장
+
+검색어 입력
+→ searchQuery 변경
+→ filteredWeatherList 재계산
+→ 추가 API 요청 없음
+```
+
+이 방식으로 기존 검색 기능을 유지하면서 API 요청이 입력 횟수만큼 증가하는 문제를 피했습니다.
+
+### 9.4 상세 화면 처리
+
+API 응답이 단일 객체에서 배열로 바뀌었기 때문에 상세 화면에서는 URL의 도시 ID와 일치하는 항목을 찾아야 했습니다.
+
+```js
+const weather = computed(() => {
+  return weatherList.value?.find(
+    (city) => city.id === route.params.id,
+  )
+})
+```
+
+기존 동적 라우팅 구조를 유지하면서 데이터 선택 부분만 최소한으로 수정했습니다.
+
+---
+
+## 10. Day 7 확장 - PrimeVue UI 적용
+
+### 10.1 적용 목표
+
+직접 작성한 HTML 요소와 CSS를 모두 없애기보다, 기존 기능과 데이터 흐름을 유지하면서 화면의 주요 요소만 PrimeVue 컴포넌트로 교체했습니다.
+
+적용한 컴포넌트는 다음과 같습니다.
+
+| 기존 요소 | PrimeVue 컴포넌트 |
+| --- | --- |
+| 공통 대시보드 영역 | `Panel` |
+| 검색 입력창 | `AutoComplete` |
+| 날씨 카드 | `Card` |
+| 온도 상태 표시 | `Tag` |
+| 상세보기·단위 변경 버튼 | `Button` |
+| 로딩 애니메이션 | `ProgressSpinner` |
+| 오류 안내 | `Message` |
+
+`main.js`에는 PrimeVue 플러그인과 Aura 테마를 등록했습니다.
+
+```js
+app.use(PrimeVue, {
+  theme: {
+    preset: Aura,
+    options: {
+      darkModeSelector: false,
+    },
+  },
+})
+```
+
+아이콘을 사용하기 위해 `primeicons` 스타일도 불러왔습니다.
+
+```js
+import 'primeicons/primeicons.css'
+```
+
+### 10.2 자동완성 검색창
+
+기존 검색창은 입력한 문자를 화면에 반영하고 목록을 필터링하는 기능만 있었습니다. PrimeVue `AutoComplete`로 교체해 현재 불러온 대표 지역 이름을 추천 목록으로 표시했습니다.
+
+홈 화면에서 API 결과의 도시 이름만 추출했습니다.
+
+```js
+const cityNames = computed(() => {
+  return weatherList.value.map((city) => city.name)
+})
+```
+
+이 배열을 `SearchBar`에 props로 전달했습니다.
+
+```html
+<SearchBar
+  :search-query="searchQuery"
+  :city-names="cityNames"
+  @update-query="searchQuery = $event"
+></SearchBar>
+```
+
+`SearchBar`에서는 AutoComplete의 `complete` 이벤트가 발생할 때 추천 목록을 계산합니다.
+
+```js
+const searchCities = (event) => {
+  const query = event.query.trim().toLowerCase()
+
+  suggestions.value = props.cityNames.filter((cityName) => {
+    return cityName.toLowerCase().includes(query)
+  })
+}
+```
+
+자동완성은 검색 UI를 보조할 뿐 기존 `searchQuery`와 `filteredWeatherList` 구조는 변경하지 않았습니다. 추천 도시를 선택하거나 직접 입력해도 기존 computed 검색이 실행됩니다.
+
+### 10.3 트러블슈팅 - `Invalid PrimeUI License`
+
+처음 다음 명령으로 버전을 지정하지 않고 PrimeVue를 설치했습니다.
+
+```sh
+npm install primevue @primeuix/themes primeicons
+```
+
+2026년 현재 이 명령은 다음 버전을 설치했습니다.
+
+```text
+primevue@5.0.1
+@primeuix/themes@3.0.0
+primeicons@8.0.0
+```
+
+PrimeVue 5에는 새로운 PrimeUI 라이선스 검증이 적용되어 화면에 `Invalid PrimeUI License` 안내가 나타났습니다. 무료 실습 프로젝트에서 라이선스 배너가 나타나지 않도록 기존 MIT 버전인 PrimeVue 4로 버전을 고정했습니다.
+
+```sh
+npm install primevue@4.5.5 @primeuix/themes@1.2.5 primeicons@7.0.0
+```
+
+최종 사용 버전은 다음과 같습니다.
+
+```text
+primevue@4.5.5
+@primeuix/themes@1.2.5
+primeicons@7.0.0
+```
+
+이 문제를 통해 패키지를 설치할 때 단순히 최신 버전을 사용하는 것보다 프로젝트의 라이선스, 문서 버전, 호환성을 함께 확인해야 한다는 점을 배웠습니다.
+
+### 10.4 PrimeVue 적용 시 주의한 점
+
+- 기존 props와 emits 이름을 유지해 부모·자식 데이터 흐름을 바꾸지 않았습니다.
+- 컴포넌트를 전역 등록하지 않고 사용하는 파일에서 개별 import했습니다.
+- PrimeVue가 제공하는 스타일은 그대로 사용하고 필요한 배치 CSS만 남겼습니다.
+- `AutoComplete` 추천 목록은 이미 받아온 도시 배열에서 만들기 때문에 추가 API 요청이 발생하지 않습니다.
+- 단위 변경과 상세 페이지 이동 같은 기존 이벤트는 PrimeVue `Button`의 click 이벤트에 그대로 연결했습니다.
+
+---
+
+## 11. 전체 데이터 흐름
 
 최종적으로 데이터는 다음과 같이 흐릅니다.
 
@@ -670,16 +864,23 @@ SearchBar 입력
 WeatherHomeView 화면 진입
   → onMounted 실행
   → useWeather.getWeather()
-  → weatherApi에서 고정 좌표 API 호출
-  → OpenWeather 응답을 카드 데이터 형태로 변환
-  → weatherData 변경
+  → weatherApi에서 대표 5지역 좌표 API 호출
+  → 각 OpenWeather 응답을 카드 데이터 형태로 변환
+  → weatherData 배열 변경
   → weatherList와 filteredWeatherList 재계산
+
+AutoComplete 입력 또는 추천 도시 선택
+  → SearchBar의 update-query emit
+  → searchQuery 변경
+  → filteredWeatherList 재계산
+  → 추가 API 요청 없이 카드 목록 갱신
 
 WeatherCard 상세보기
   → click-detail emit
   → WeatherHomeView의 router.push()
   → /weather/:id 이동
-  → WeatherDetailView에서 동일한 고정 좌표 API 호출
+  → WeatherDetailView에서 대표 5지역 API 호출
+  → route.params.id와 일치하는 도시 선택
 
 UnitToggle 클릭
   → configStore.toggleUnit()
@@ -690,7 +891,7 @@ UnitToggle 클릭
 
 ---
 
-## 10. 개발 과정에서 특히 주의한 점
+## 12. 개발 과정에서 특히 주의한 점
 
 ### 상태의 위치
 
@@ -707,6 +908,7 @@ UnitToggle 클릭
 - Store는 전역 설정 담당
 - Composable은 재사용 가능한 반응형 로직 담당
 - API 모듈은 HTTP 요청과 응답 형식 변환 담당
+- UI 라이브러리는 화면 표현을 담당하고 기존 상태 흐름은 유지
 
 역할을 구분해 특정 기능을 수정할 때 여러 파일을 동시에 고쳐야 하는 상황을 줄였습니다.
 
@@ -728,7 +930,7 @@ npm run build
 
 ---
 
-## 11. 배운 점과 회고
+## 13. 배운 점과 회고
 
 처음에는 한 파일에 모든 코드를 작성하는 것이 간단해 보였습니다. 하지만 검색, 상세 화면, 전역 단위 설정이 추가되면서 상태와 UI의 역할을 분리할 필요가 생겼습니다.
 
@@ -745,12 +947,14 @@ npm run build
 - composable은 여러 곳에서 반복되는 반응형 로직을 재사용한다.
 - 외부 API 데이터는 기존 UI가 사용하는 형태로 변환해 전달한다.
 - 비동기 요청에는 성공뿐 아니라 로딩과 실패 상태도 필요하다.
+- UI 라이브러리도 버전과 라이선스를 확인하고 설치해야 한다.
+- 자동완성은 기존 검색 상태를 대체하지 않고 보조할 수 있다.
 
 특히 기능이 확장될수록 단순히 코드를 여러 파일로 나누는 것보다 각 파일이 어떤 책임을 가져야 하는지 결정하는 것이 더 중요하다는 점을 배웠습니다.
 
-## 12. 이후 개선 계획
+## 14. 이후 개선 계획
 
-- 여러 지역의 API 데이터를 배열로 관리해 검색 범위 확장
+- 대표 지역 목록을 별도 데이터 파일 또는 Store로 분리
 - 고정 좌표가 아닌 현재 위치 또는 사용자가 선택한 지역 조회
 - API 요청 결과 캐싱으로 홈과 상세 화면의 중복 요청 감소
 - 백엔드 프록시를 사용해 API 키 보호
@@ -758,7 +962,7 @@ npm run build
 - Pinia 상태를 localStorage에 저장해 새로고침 후에도 단위 유지
 - 컴포넌트 및 라우터 동작 테스트 추가
 
-## 13. 실행 방법
+## 15. 실행 방법
 
 ```sh
 npm install

@@ -5,6 +5,8 @@ import BaseDashboardCard from '../components/exercise/BaseDashboardCard.vue'
 import SearchBar from '../components/exercise/SearchBar.vue'
 import WeatherCard from '../components/exercise/WeatherCard.vue'
 import { useWeather } from '@/composables/useWeather'
+import Message from 'primevue/message'
+import ProgressSpinner from 'primevue/progressspinner'
 
 const router = useRouter()
 const searchQuery = ref('')
@@ -12,6 +14,7 @@ const selectedCityInfo = ref('')
 const { weatherData, isLoading, errorMessage, getWeather } = useWeather()
 
 const weatherList = computed(() => weatherData.value ?? [])
+const cityNames = computed(() => weatherList.value.map((city) => city.name))
 
 const filteredWeatherList = computed(() => {
   return weatherList.value.filter((city) => city.name.includes(searchQuery.value.trim()))
@@ -35,13 +38,17 @@ onMounted(() => {
     <BaseDashboardCard title="🔍 도시 검색">
       <SearchBar
         :search-query="searchQuery"
+        :city-names="cityNames"
         @update-query="searchQuery = $event"
       ></SearchBar>
     </BaseDashboardCard>
 
     <BaseDashboardCard title="🌁 지역별 날씨 현황">
-      <p v-if="isLoading" class="state-message">날씨 데이터를 불러오는 중입니다...</p>
-      <p v-else-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+      <div v-if="isLoading" class="state-message">
+        <ProgressSpinner class="loading-spinner" stroke-width="5"></ProgressSpinner>
+        <span>날씨 데이터를 불러오는 중입니다...</span>
+      </div>
+      <Message v-else-if="errorMessage" severity="error">{{ errorMessage }}</Message>
       <div v-else-if="filteredWeatherList.length" class="weather-list">
         <WeatherCard
           v-for="weather in filteredWeatherList"
@@ -87,8 +94,16 @@ onMounted(() => {
 }
 
 .state-message {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
   background: #f1f5f9;
   color: #475569;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
 }
 
 .error-message {

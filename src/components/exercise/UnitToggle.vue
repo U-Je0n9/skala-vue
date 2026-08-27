@@ -1,5 +1,6 @@
 <script setup>
 import { useConfigStore } from '@/stores/configStore'
+import Button from 'primevue/button'
 
 const configStore = useConfigStore()
 </script>
@@ -7,9 +8,13 @@ const configStore = useConfigStore()
 <template>
   <div class="unit-toggle">
     <span>날씨 단위: {{ configStore.unitSymbol }}</span>
-    <button type="button" @click="configStore.toggleUnit()">
-      {{ configStore.unit === 'celsius' ? '화씨로 변경' : '섭씨로 변경' }}
-    </button>
+    <Button
+      type="button"
+      size="small"
+      severity="secondary"
+      :label="configStore.unit === 'celsius' ? '화씨로 변경' : '섭씨로 변경'"
+      @click="configStore.toggleUnit()"
+    ></Button>
   </div>
 </template>
 
@@ -26,20 +31,4 @@ const configStore = useConfigStore()
   font-weight: 700;
 }
 
-.unit-toggle button {
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 7px;
-  background: #334155;
-  color: #fff;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.unit-toggle button:hover {
-  background: #0f172a;
-}
 </style>

@@ -1,24 +1,43 @@
 <script setup>
-defineProps({
+import { ref } from 'vue'
+import AutoComplete from 'primevue/autocomplete'
+
+const props = defineProps({
   searchQuery: {
     type: String,
     default: '',
   },
+  cityNames: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['update-query'])
+const suggestions = ref([])
+
+const searchCities = (event) => {
+  const query = event.query.trim().toLowerCase()
+
+  suggestions.value = props.cityNames.filter((cityName) => {
+    return cityName.toLowerCase().includes(query)
+  })
+}
 </script>
 
 <template>
   <div class="search-bar">
     <label for="weather-search">검색할 도시 이름 입력</label>
-    <input
-      id="weather-search"
-      type="search"
-      :value="searchQuery"
+    <AutoComplete
+      input-id="weather-search"
+      :model-value="searchQuery"
+      :suggestions="suggestions"
       placeholder="예: 서울"
-      @input="emit('update-query', $event.target.value)"
-    />
+      dropdown
+      complete-on-focus
+      @complete="searchCities"
+      @update:model-value="emit('update-query', $event)"
+    ></AutoComplete>
     <p>검색 중인 도시: {{ searchQuery || '없음' }}</p>
   </div>
 </template>
@@ -35,20 +54,9 @@ const emit = defineEmits(['update-query'])
   font-weight: 700;
 }
 
-.search-bar input {
+.search-bar :deep(.p-autocomplete),
+.search-bar :deep(.p-autocomplete-input) {
   width: 100%;
-  box-sizing: border-box;
-  padding: 12px 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  color: #0f172a;
-  font: inherit;
-  outline: none;
-}
-
-.search-bar input:focus {
-  border-color: #0ea5e9;
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14);
 }
 
 .search-bar p {

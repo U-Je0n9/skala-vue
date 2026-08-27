@@ -3,6 +3,9 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTemperature } from '@/composables/useTemperature'
 import { useWeather } from '@/composables/useWeather'
+import Button from 'primevue/button'
+import Message from 'primevue/message'
+import ProgressSpinner from 'primevue/progressspinner'
 
 const router = useRouter()
 const route = useRoute()
@@ -20,12 +23,13 @@ onMounted(() => {
 
 <template>
   <section v-if="isLoading" class="detail-card state-message">
-    날씨 데이터를 불러오는 중입니다...
+    <ProgressSpinner class="loading-spinner" stroke-width="5"></ProgressSpinner>
+    <span>날씨 데이터를 불러오는 중입니다...</span>
   </section>
 
   <section v-else-if="errorMessage" class="detail-card state-message error-message">
-    <p>{{ errorMessage }}</p>
-    <button type="button" @click="router.push('/')">목록으로 돌아가기</button>
+    <Message severity="error">{{ errorMessage }}</Message>
+    <Button label="목록으로 돌아가기" @click="router.push('/')"></Button>
   </section>
 
   <section v-else-if="weather" class="detail-card">
@@ -48,7 +52,7 @@ onMounted(() => {
         <dd>{{ weather.wind }}m/s</dd>
       </div>
     </dl>
-    <button type="button" @click="router.push('/')">목록으로 돌아가기</button>
+    <Button label="목록으로 돌아가기" icon="pi pi-arrow-left" @click="router.push('/')"></Button>
   </section>
 </template>
 
@@ -99,8 +103,16 @@ onMounted(() => {
 }
 
 .state-message {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
   color: #475569;
   text-align: center;
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
 }
 
 .error-message {

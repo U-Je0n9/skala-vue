@@ -1,5 +1,8 @@
 <script setup>
 import { useTemperature } from '@/composables/useTemperature'
+import Button from 'primevue/button'
+import Card from 'primevue/card'
+import Tag from 'primevue/tag'
 
 const props = defineProps({
   weather: {
@@ -9,93 +12,68 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['select-card', 'click-detail'])
-
 const { displayTemp, unitSymbol } = useTemperature(() => props.weather.temp)
 </script>
 
 <template>
-  <article class="weather-card" @click="emit('select-card', weather)">
-    <div>
-      <h3>{{ weather.name }} ({{ weather.status }})</h3>
+  <Card class="weather-card" @click="emit('select-card', weather)">
+    <template #title>
+      <div class="card-header">
+        <span>{{ weather.name }} ({{ weather.status }})</span>
+        <Button
+          type="button"
+          label="상세보기"
+          icon="pi pi-arrow-right"
+          icon-pos="right"
+          size="small"
+          outlined
+          @click.stop="emit('click-detail', weather)"
+        ></Button>
+      </div>
+    </template>
+    <template #content>
       <p>현재 기온: {{ displayTemp }}{{ unitSymbol }}</p>
-      <span :class="weather.temp < 25 ? 'cool' : 'hot'">
-        {{ weather.temp < 25 ? '❄️ 선선함' : '🔥 더움' }}
-      </span>
-    </div>
-    <button type="button" @click.stop="emit('click-detail', weather)">상세보기</button>
-  </article>
+      <Tag
+        :severity="weather.temp < 25 ? 'info' : 'danger'"
+        :value="weather.temp < 25 ? '❄️ 선선함' : '🔥 더움'"
+      ></Tag>
+    </template>
+  </Card>
 </template>
 
 <style scoped>
 .weather-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 18px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fff;
   cursor: pointer;
-  transition: 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .weather-card:hover {
   transform: translateY(-2px);
-  border-color: #7dd3fc;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
-.weather-card h3 {
-  margin: 0 0 8px;
-  color: #0f172a;
-  font-size: 17px;
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.card-header span {
+  min-width: 0;
 }
 
 .weather-card p {
-  margin: 0 0 9px;
+  margin: 0 0 12px;
   color: #475569;
   font-size: 14px;
 }
 
-.weather-card span {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.cool {
-  background: #e0f2fe;
-  color: #0369a1;
-}
-
-.hot {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.weather-card button {
-  flex-shrink: 0;
-  padding: 9px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 7px;
-  background: #fff;
-  color: #334155;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.weather-card button:hover {
-  border-color: #0284c7;
-  color: #0284c7;
-}
-
 @media (max-width: 480px) {
-  .weather-card {
-    align-items: stretch;
-    flex-direction: column;
+  .card-header {
+    align-items: flex-start;
   }
 }
 </style>

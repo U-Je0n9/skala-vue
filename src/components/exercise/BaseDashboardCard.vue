@@ -1,4 +1,6 @@
 <script setup>
+import Panel from 'primevue/panel'
+
 defineProps({
   title: {
     type: String,
@@ -8,24 +10,14 @@ defineProps({
 </script>
 
 <template>
-  <section class="dashboard-card">
-    <h2>{{ title }}</h2>
+  <Panel class="dashboard-card" :header="title">
     <slot></slot>
-  </section>
+  </Panel>
 </template>
 
 <style scoped>
 .dashboard-card {
-  padding: 22px;
-  border: 1px solid #dbe4ee;
   border-radius: 14px;
-  background: #fff;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-}
-
-.dashboard-card h2 {
-  margin: 0 0 18px;
-  color: #1e293b;
-  font-size: 19px;
 }
 </style>
